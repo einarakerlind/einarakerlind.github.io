@@ -60,32 +60,64 @@
         #restart-link:hover {
             background-color: rgba(139, 69, 19, 0.9);
         }
+        #start-button {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 15px 30px;
+            font-size: 24px;
+            background-color: #8B4513;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 1000;
+            transition: background-color 0.3s;
+        }
+        #start-button:hover {
+            background-color: #723A0F;
+        }
+        #start-button.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div id="image-container">
         <img id="target-image">
     </div>
+    <button id="start-button">Mura in den jäveln</button>
     <svg id="pattern-container"></svg>
     <a href="index.html" id="restart-link">Mura in nån annan?</a>
+    <audio id="brickSound" src="tuta.mp4" loop></audio>
 
     <script>
-        // Get image URL from parameters
+
         const urlParams = new URLSearchParams(window.location.search);
         const imageUrl = urlParams.get('image');
-        
-        // Set up image
         const targetImage = document.getElementById('target-image');
+        const startButton = document.getElementById('start-button');
+        const brickSound = document.getElementById('brickSound');
+        
         targetImage.src = imageUrl;
         
-        // Wait for image to load before starting animation
-        targetImage.onload = () => {
-            setTimeout(startAnimation, 2000); // Wait 2 seconds before starting
+        startButton.addEventListener('click', () => {
+            startButton.classList.add('hidden');
+            brickSound.play();
+            startAnimation();
+        });
+
+        // Error handling
+        targetImage.onerror = () => {
+            alert('Kunde inte ladda bilden. Kontrollera URL:en och försök igen.');
+            window.location.href = 'index.html';
         };
 
         function startAnimation() {
             const svg = document.getElementById('pattern-container');
             svg.style.opacity = '1';
+
             
             // SVG setup and brick creation
             const BRICK_WIDTH = 100;
@@ -160,10 +192,10 @@
                     currentBrick++;
                     setTimeout(animateNextBrick, ANIMATION_DELAY);
                 } else {
-                    // Animation is complete, show the restart link
+                    brickSound.pause();
                     setTimeout(() => {
                         document.getElementById('restart-link').style.opacity = '1';
-                    }, 500); // Small delay after last brick
+                    }, 500);
                 }
             }
 
