@@ -1,0 +1,70 @@
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    height: 100vh; /* Ensure body takes full viewport height */
+    background-color: #011323;
+    margin: 0;
+    padding: 0;
+    font-family: 'Arial', sans-serif;
+    box-sizing: border-box;
+}
+
+.layout-container {
+    display: flex;
+    justify-content: flex-start; /* Start from left */
+    align-items: center; /* Center items vertically */
+    gap: 20px; /* Space between image and game container */
+    width: calc(100% - 40px); /* Full width minus left and right margins */
+    height: 100%;
+    padding: 0 20px; /* 20px margin on left and right */
+    box-sizing: border-box;
+}
+
+.image-container {
+    height: calc(100vh - 40px); /* Full viewport height minus top and bottom margins */
+    display: flex;
+    align-items: center;
+}
+
+.image-container img {
+    display: block;
+    max-height: 100%; /* Limit image height to container */
+    width: auto;
+    object-fit: contain;
+}
+
+.game-container {
+    position: relative;
+    border-bottom: 1px solid #444;
+    overflow: hidden;
+    width: 800px;
+    height: 250px;
+}
+
+#gameCanvas {
+    display: block;
+    background-color: #011323;
+}
+
+#score {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 18px;
+    color: #666;
+}
+
+#instructions, #gameOver {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    color: #666;
+    text-align: center;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 10px;
+    border-radius: 5px;
+}
