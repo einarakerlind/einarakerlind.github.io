@@ -3,23 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dino Clone</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Centered Square Image</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+        }
+        img {
+            max-width: calc(100% - 20px);
+            max-height: calc(100% - 20px);
+            margin: 10px;
+        }
+    </style>
 </head>
 <body>
-    <div class="layout-container">
-        <!-- Image container on the left -->
-        <div class="image-container">
-            <img src="bg.jpg" alt="Game Character">
-        </div>
-
-        <div class="game-container">
-            <div id="score">Score: 0</div>
-            <div id="instructions">Press SPACE to Start / Jump</div>
-            <div id="gameOver" style="display: none;">Game Over! Press SPACE to Restart</div>
-            <canvas id="gameCanvas" width="800" height="250"></canvas>
-        </div>
-    </div>
-    <script src="script.js"></script>
+    <img src="patapata.webp" alt="Centered square image">
 </body>
 </html>
