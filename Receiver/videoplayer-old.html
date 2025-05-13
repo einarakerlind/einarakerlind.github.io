@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Frame Extractor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #323232;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .video-container {
+            position: relative;
+        }
+        video {
+            max-width: 100%;
+            background-color: #000;
+        }
+        .controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .frame-info {
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .saved-frames {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .frame-item {
+            position: relative;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .frame-item img {
+            width: 100%;
+            display: block;
+        }
+        .frame-item .frame-number {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            padding: 2px 6px;
+            font-size: 12px;
+        }
+        .frame-item .remove-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: rgba(255,0,0,0.7);
+            color: white;
+            border: none;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        .file-input {
+            margin-bottom: 20px;
+        }
+        #videoUpload {
+            display: none;
+        }
+        .upload-btn {
+            background-color: #2196F3;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        .export-btn {
+            background-color: #ff9800;
+        }
+        .canvas-container {
+            display: none;
+        }
+        .status {
+            font-weight: bold;
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <h1>Video Frame Extractor</h1>
+    
+    <div class="container">
+        <div class="file-input">
+            <button class="upload-btn" id="uploadButton">Select Video File</button>
+            <input type="file" id="videoUpload" accept="video/*">
+            <span id="fileName"></span>
+        </div>
+
+        <div class="video-container">
+            <video id="videoPlayer"></video>
+            <div class="frame-info">
+                Frame: <span id="currentFrame">0</span> / <span id="totalFrames">0</span>
+                Time: <span id="currentTime">0.00</span> / <span id="totalTime">0.00</span> seconds
+            </div>
+            <div class="controls">
+                <button id="playBtn">Play</button>
+                <button id="pauseBtn">Pause</button>
+                <button id="prevFrameBtn" disabled>Previous Frame</button>
+                <button id="nextFrameBtn" disabled>Next Frame</button>
+                <button id="saveFrameBtn" disabled>Save Current Frame</button>
+            </div>
+            <p class="status" id="status"></p>
+        </div>
+
+        <h2>Saved Frames</h2>
+        <p id="noFrames">No frames saved yet.</p>
+        <div class="saved-frames" id="savedFramesContainer"></div>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script>
+        // Get DOM elements
+        const videoPlayer = document.getElementById('videoPlayer');
+        const uploadButton = document.getElementById('uploadButton');
+        const videoUpload = document.getElementById('videoUpload');
+        const fileName = document.getElementById('fileName');
+        const playBtn = document.getElementById('playBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const prevFrameBtn = document.getElementById('prevFrameBtn');
+        const nextFrameBtn = document.getElementById('nextFrameBtn');
+        const saveFrameBtn = document.getElementById('saveFrameBtn');
+        const currentFrameEl = document.getElementById('currentFrame');
+        const totalFramesEl = document.getElementById('totalFrames');
+        const currentTimeEl = document.getElementById('currentTime');
+        const totalTimeEl = document.getElementById('totalTime');
+        const savedFramesContainer = document.getElementById('savedFramesContainer');
+        const noFramesMessage = document.getElementById('noFrames');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const statusEl = document.getElementById('status');
+
+        // Video variables
+        let fps = 30; // Estimated frames per second
+        let frameDuration; // Duration of one frame in seconds
+        let videoLoaded = false;
+        let savedFrames = []; // Array to store saved frames data
+
+        // Initialize message listener for UXP communication
+        window.addEventListener('message', handleUXPMessage);
+
+        // Initialize buttons
+        uploadButton.addEventListener('click', () => videoUpload.click());
+        videoUpload.addEventListener('change', handleVideoUpload);
+        playBtn.addEventListener('click', playVideo);
+        pauseBtn.addEventListener('click', pauseVideo);
+        prevFrameBtn.addEventListener('click', goToPreviousFrame);
+        nextFrameBtn.addEventListener('click', goToNextFrame);
+        saveFrameBtn.addEventListener('click', saveCurrentFrame);
+
+        // Handle UXP messages
+        function handleUXPMessage(event) {
+            const message = event.data;
+            
+            // Check if the message is for loading a video
+            if (message && message.key === 'loadVideo' && message.value) {
+                loadVideoFromUXP(message.value);
+            }
+        }
+
+        // Load video from UXP message
+        function loadVideoFromUXP(videoData) {
+            // Create a Blob from the received data
+            
+            //const blob = dataURItoBlob(videoData);
+            //const videoURL = URL.createObjectURL(blob);
+            
+            // Reset saved frames
+            savedFrames = [];
+            updateSavedFramesDisplay();
+            
+            // Load the video
+            videoPlayer.src = videoData;
+            fileName.textContent = "Video loaded from UXP";
+            
+            videoPlayer.addEventListener('loadedmetadata', initializeVideo);
+            videoPlayer.load();
+            
+            showStatus('Video received from UXP plugin');
+        }
+
+        // Convert Data URI to Blob
+        function dataURItoBlob(dataURI) {
+            // Handle base64 data URIs
+            if (dataURI.split(',')[0].indexOf('base64') >= 0) {
+                const byteString = atob(dataURI.split(',')[1]);
+                const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+                
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                
+                return new Blob([ab], {type: mimeString});
+            } else {
+                // Handle binary data
+                return new Blob([dataURI], {type: 'video/mp4'});
+            }
+        }
+
+        // Handle video upload from file input
+        function handleVideoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            fileName.textContent = file.name;
+            
+            // Create a URL for the video file
+            const videoURL = URL.createObjectURL(file);
+            videoPlayer.src = videoURL;
+            
+            // Reset saved frames when new video is loaded
+            savedFrames = [];
+            updateSavedFramesDisplay();
+            
+            videoPlayer.addEventListener('loadedmetadata', initializeVideo);
+            videoPlayer.load();
+        }
+
+        // Initialize video data once metadata is loaded
+        function initializeVideo() {
+            // Set canvas size to match video dimensions
+            canvas.width = videoPlayer.videoWidth;
+            canvas.height = videoPlayer.videoHeight;
+            
+            // Calculate total frames (estimated)
+            fps = estimateFrameRate();
+            frameDuration = 1 / fps;
+            const totalFrames = Math.ceil(videoPlayer.duration * fps);
+            
+            // Update UI
+            totalFramesEl.textContent = totalFrames;
+            totalTimeEl.textContent = videoPlayer.duration.toFixed(2);
+            
+            // Enable controls
+            videoLoaded = true;
+            prevFrameBtn.disabled = false;
+            nextFrameBtn.disabled = false;
+            saveFrameBtn.disabled = false;
+            
+            // Set initial frame
+            updateCurrentFrameInfo(0);
+            
+            // Set up timeupdate event for frame tracking
+            videoPlayer.addEventListener('timeupdate', updateFrameInfo);
+            
+            // Show status
+            showStatus(`Video loaded: ${videoPlayer.videoWidth}x${videoPlayer.videoHeight}, ${fps}fps, ${videoPlayer.duration.toFixed(2)}s`);
+        }
+
+        // Estimate frame rate based on video duration
+        function estimateFrameRate() {
+            // For most common videos, 30fps is a good default
+            // Could be improved with more sophisticated detection
+            return 30;
+        }
+
+        // Update frame information while video is playing
+        function updateFrameInfo() {
+            const currentTime = videoPlayer.currentTime;
+            const currentFrame = Math.ceil(currentTime * fps);
+            updateCurrentFrameInfo(currentFrame);
+        }
+
+        // Update current frame display
+        function updateCurrentFrameInfo(frameNumber) {
+            currentFrameEl.textContent = frameNumber;
+            currentTimeEl.textContent = videoPlayer.currentTime.toFixed(2);
+        }
+
+        // Play video
+        function playVideo() {
+            if (videoLoaded) {
+                videoPlayer.play();
+            }
+        }
+
+        // Pause video
+        function pauseVideo() {
+            if (videoLoaded) {
+                videoPlayer.pause();
+            }
+        }
+
+        // Go to previous frame
+        function goToPreviousFrame() {
+            if (!videoLoaded) return;
+            
+            pauseVideo();
+            
+            // Get current frame and go back one frame
+            const currentFrame = parseInt(currentFrameEl.textContent);
+            const prevFrame = Math.max(0, currentFrame - 1);
+            
+            // Set video time to previous frame
+            videoPlayer.currentTime = prevFrame * frameDuration;
+            updateCurrentFrameInfo(prevFrame);
+        }
+
+        // Go to next frame
+        function goToNextFrame() {
+            if (!videoLoaded) return;
+            
+            pauseVideo();
+            
+            // Get current frame and go forward one frame
+            const currentFrame = parseInt(currentFrameEl.textContent);
+            const nextFrame = currentFrame + 1;
+            const totalFrames = parseInt(totalFramesEl.textContent);
+            
+            if (nextFrame <= totalFrames) {
+                // Set video time to next frame
+                videoPlayer.currentTime = nextFrame * frameDuration;
+                updateCurrentFrameInfo(nextFrame);
+            }
+        }
+
+        // Send image data to UXP host
+        function sendImageData(frameNumber, frameTime) {
+            if (window.uxpHost) {
+                const imageData = {
+                    "key": "imageDetails",
+                    "value": canvas.toDataURL()
+                };
+                window.uxpHost.postMessage(imageData);
+                return true;
+            } else {
+                console.log("window.uxpHost not supported");
+                return false;
+            }
+        }
+
+        // Save current frame
+        function saveCurrentFrame() {
+            if (!videoLoaded) return;
+            
+            pauseVideo();
+            
+            // Draw current video frame to canvas
+            ctx.drawImage(videoPlayer, 0, 0, canvas.width, canvas.height);
+            
+            // Get current frame information
+            const currentFrame = parseInt(currentFrameEl.textContent);
+            const currentTime = videoPlayer.currentTime;
+            
+            // Send the frame to UXP
+            const sent = sendImageData(currentFrame, currentTime);
+            
+            if (sent) {
+                showStatus(`Frame ${currentFrame} sent to Photoshop!`);
+            } else {
+                // If UXP not available, fallback to saving in the UI
+                saveFrameLocally(currentFrame, currentTime);
+            }
+        }
+
+        // Save frame locally (fallback when not in UXP)
+        function saveFrameLocally(frameNumber, frameTime) {
+            // Get frame as data URL
+            const frameDataURL = canvas.toDataURL('image/png');
+            
+            // Add to saved frames if not already saved
+            if (!isFrameAlreadySaved(frameNumber)) {
+                savedFrames.push({
+                    frameNumber: frameNumber,
+                    time: frameTime,
+                    dataURL: frameDataURL
+                });
+                
+                // Sort frames by frame number
+                savedFrames.sort((a, b) => a.frameNumber - b.frameNumber);
+                
+                // Update display
+                updateSavedFramesDisplay();
+                
+                showStatus(`Frame ${frameNumber} saved!`);
+            } else {
+                showStatus(`Frame ${frameNumber} already saved!`);
+            }
+        }
+
+        // Check if frame is already saved
+        function isFrameAlreadySaved(frameNumber) {
+            return savedFrames.some(frame => frame.frameNumber === frameNumber);
+        }
+
+        // Update saved frames display
+        function updateSavedFramesDisplay() {
+            // Clear container
+            savedFramesContainer.innerHTML = '';
+            
+            if (savedFrames.length === 0) {
+                noFramesMessage.style.display = 'block';
+                return;
+            }
+            
+            noFramesMessage.style.display = 'none';
+            
+            // Add each saved frame to the display
+            savedFrames.forEach((frame, index) => {
+                const frameElement = document.createElement('div');
+                frameElement.className = 'frame-item';
+                
+                const img = document.createElement('img');
+                img.src = frame.dataURL;
+                
+                const frameNumber = document.createElement('div');
+                frameNumber.className = 'frame-number';
+                frameNumber.textContent = `Frame ${frame.frameNumber}`;
+                
+                const removeButton = document.createElement('button');
+                removeButton.className = 'remove-btn';
+                removeButton.textContent = '×';
+                removeButton.addEventListener('click', () => removeFrame(index));
+                
+                frameElement.appendChild(img);
+                frameElement.appendChild(frameNumber);
+                frameElement.appendChild(removeButton);
+                
+                savedFramesContainer.appendChild(frameElement);
+            });
+        }
+
+        // Remove a saved frame
+        function removeFrame(index) {
+            savedFrames.splice(index, 1);
+            updateSavedFramesDisplay();
+            showStatus('Frame removed!');
+        }
+
+        // Show status message with auto-clear
+        function showStatus(message) {
+            statusEl.textContent = message;
+            setTimeout(() => {
+                statusEl.textContent = '';
+            }, 3000);
+        }
+
+        // Announce ready state to UXP host
+        function announceReadyToUXP() {
+            if (window.uxpHost) {
+                window.uxpHost.postMessage({
+                    "key": "webviewReady",
+                    "value": true
+                });
+            }
+        }
+
+        // Announce ready when page is loaded
+        window.addEventListener('load', announceReadyToUXP);
+    </script>
+</body>
+</html>

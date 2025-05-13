@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Frame Extractor (UXP Webview)</title>
+    <script src="index.js" defer></script>
+    <style>
+        /* Basic styles - Adjust as needed for UXP theme */
+        body {
+            font-family: sans-serif; /* Use system sans-serif */
+            margin: 0;
+            line-height: 1.5;
+            background-color: #323232; /* Example dark theme */
+            color: #d0d0d0; /* Example light text */
+            font-size: 14px;
+            box-sizing: border-box;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px; /* Spacing between sections */
+            flex-grow: 1; /* Allow container to fill space */
+            overflow-y: auto; /* Add scroll if content overflows */
+        }
+        .video-info {
+            font-size: 12px;
+            color: #a0a0a0;
+        }
+        .video-container {
+            position: relative;
+            background-color: #000;
+            width: 100%; /* Take available width */
+            max-width: 100%; /* Ensure it doesn't overflow */
+        }
+        video {
+            display: block; /* Remove extra space below video */
+            max-width: 100%;
+            width: 100%; /* Make video fill container */
+            height: auto; /* Maintain aspect ratio */
+            background-color: #000;
+        }
+        .controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap; /* Allow controls to wrap on smaller screens */
+        }
+        button {
+            padding: 6px 12px;
+            background-color: #4a4a4a; /* Darker button */
+            color: #e0e0e0; /* Lighter text */
+            border: 1px solid #666;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 13px;
+            min-width: 80px; /* Ensure buttons have some minimum width */
+            text-align: center;
+        }
+        button:hover:not(:disabled) {
+            background-color: #5a5a5a;
+            border-color: #777;
+        }
+        button:active:not(:disabled) {
+            background-color: #6a6a6a;
+        }
+        button:disabled {
+            background-color: #383838;
+            border-color: #444;
+            color: #777;
+            cursor: not-allowed;
+        }
+        .frame-info {
+            font-size: 13px;
+            margin-top: 5px;
+            color: #b0b0b0;
+        }
+        .canvas-container {
+            display: none; /* Canvas is only for internal use */
+        }
+        .status {
+            margin-top: 10px;
+            font-weight: bold;
+            color: #66bb6a; /* Light green for status */
+            min-height: 1.5em; /* Prevent layout shift */
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Container helps manage layout and potential scrolling -->
+    <div class="container">
+
+        <!-- Video player and controls -->
+        <div class="video-container">
+            <video id="videoPlayer"></video>
+        </div>
+        <div class="frame-info">
+            Frame: <span id="currentFrame">0</span> / <span id="totalFrames">0</span> |
+            Time: <span id="currentTime">0.00</span> / <span id="totalTime">0.00</span>s
+        </div>
+        <div class="controls">
+            <!-- Merged Play/Pause button -->
+            <button id="playPauseBtn" disabled>Play</button>
+            <button id="prevFrameBtn" disabled>Prev Frame</button>
+            <button id="nextFrameBtn" disabled>Next Frame</button>
+            <button id="saveFrameBtn" disabled>Save Frame</button>
+        </div>
+        <p class="status" id="status"></p>
+    </div>
+
+    <!-- Hidden canvas for frame capture -->
+    <div class="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+</body>
+</html>
