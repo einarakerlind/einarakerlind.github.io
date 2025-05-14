@@ -44,6 +44,7 @@ function loadVideoFromUXP(videoData) {
     resetVideoState();
     
     // Load the video
+    videoPlayer.crossOrigin = 'anonymous';
     videoPlayer.src = videoData;
     
     // Use 'loadedmetadata' for initial setup, 'canplay' might be better for ensuring playback readiness
