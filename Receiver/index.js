@@ -44,14 +44,14 @@ function loadVideoFromUXP(videoData) {
     resetVideoState();
     
     // Load the video
-    videoPlayer.crossOrigin = 'anonymous';
+    
     videoPlayer.src = videoData;
     
     // Use 'loadedmetadata' for initial setup, 'canplay' might be better for ensuring playback readiness
     videoPlayer.addEventListener('loadedmetadata', initializeVideo);
     videoPlayer.addEventListener('error', handleVideoError); // Add error handling
     videoPlayer.load(); // Trigger loading
-    
+    videoPlayer.crossOrigin = 'anonymous';
     showStatus('Receiving video from UXP plugin...');
 }
 
